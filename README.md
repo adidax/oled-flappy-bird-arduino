@@ -18,9 +18,6 @@ Play Flappy Bird on the Arduino with OLED Display 128x64
 ### Push Button
 - GND -> Push Button -> D2  
 
-### Push Button RIGHT  
-- GND -> Push Button -> D3  
-
 ## Required Libraries
 Ensure that the following libraries are installed via the Library Manager:
 - Adafruit SSD1306 including Adafruit GFX

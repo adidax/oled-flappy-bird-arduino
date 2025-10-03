@@ -55,9 +55,11 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 const bool DEBUG_PRINT = false;  // auf true für Debug-Ausgaben am seriellen Monitor
 
-// Button & Physik
+// Button
 const int BUTTON_PIN = 2; // Push-Button an Digitalpin 2
-const int SCALE_FACTOR = 10;  // Skalierung um Faktor 10 für präzisere Bewegungen
+
+// Physik und Hindernisse
+const int SCALE_FACTOR = 10;  // Interne Skalierung um Faktor 10 für präzisere Bewegungen
 const int GRAVITY = 5; // Schwerkraft, die pro Frame auf Spielfigur einwirkt
 const int JUMP_STRENGTH = -25; // Sprung-Beschleunigung bei gedrücktem Pushbutton
 const int PIPE_WIDTH = 15 * SCALE_FACTOR; // Rohre an Display 15px breit
@@ -68,6 +70,25 @@ const int PIPE_SPACING = 65 * SCALE_FACTOR;  // Default Abstand zwischen 2 Pipes
 // Größe des Spieler-Sprites
 const int BIRD_WIDTH_PX = 10;
 const int BIRD_HEIGHT_PX = 8;
+
+// Grafiken für Spielfigur
+// konvertiert aus PNG mit https://javl.github.io/image2cpp/
+
+// 'bird1', 10x8px
+const unsigned char epd_bitmap_bird1[] PROGMEM = {
+  0x0e, 0x00, 0x15, 0x00, 0x60, 0x80, 0x81, 0x80, 0xfc, 0xc0, 0xfb, 0x80, 0x71, 0x00, 0x1e, 0x00
+};
+// 'bird2', 10x8px
+const unsigned char epd_bitmap_bird2[] PROGMEM = {
+  0x0e, 0x00, 0x15, 0x00, 0x70, 0x80, 0xf9, 0x80, 0xfc, 0xc0, 0x83, 0x80, 0x71, 0x00, 0x1e, 0x00
+};
+
+// Array of all bitmaps for convenience. (Total bytes used to store images in PROGMEM = 64)
+const int epd_bitmap_allArray_LEN = 2;
+const unsigned char* epd_bitmap_allArray[2] = {
+  epd_bitmap_bird1,
+  epd_bitmap_bird2
+};
 
 // Game Variablen
 int birdY; // Vertikale Position des Spielers
@@ -103,25 +124,6 @@ unsigned long lastBlinkTime = 0;
 // Framerate Steuerung
 const int FRAME_TIME = 40;  // 40ms pro Frame = 25 FPS
 unsigned long lastFrameTime = 0;
-
-// Grafiken für Spielfigur
-// konvertiert aus PNG mit https://javl.github.io/image2cpp/
-
-// 'bird1', 10x8px
-const unsigned char epd_bitmap_bird1[] PROGMEM = {
-  0x0e, 0x00, 0x15, 0x00, 0x60, 0x80, 0x81, 0x80, 0xfc, 0xc0, 0xfb, 0x80, 0x71, 0x00, 0x1e, 0x00
-};
-// 'bird2', 10x8px
-const unsigned char epd_bitmap_bird2[] PROGMEM = {
-  0x0e, 0x00, 0x15, 0x00, 0x70, 0x80, 0xf9, 0x80, 0xfc, 0xc0, 0x83, 0x80, 0x71, 0x00, 0x1e, 0x00
-};
-
-// Array of all bitmaps for convenience. (Total bytes used to store images in PROGMEM = 64)
-const int epd_bitmap_allArray_LEN = 2;
-const unsigned char* epd_bitmap_allArray[2] = {
-  epd_bitmap_bird1,
-  epd_bitmap_bird2
-};
 
 
 void setup() {
@@ -252,7 +254,7 @@ void movePipes() {
     // Wenn Pipe den linken Rand verlässt, sofort neue Pipe am  rechten Rand erzeugen
     if (pipes[i].x < -PIPE_WIDTH) {
       pipes[i].x = findFurthestPipe() + PIPE_SPACING + random(-20, 20) * SCALE_FACTOR;  // Setze neue Pipe ganz rechts
-      pipes[i].height = random(10 * SCALE_FACTOR, SCREEN_HEIGHT * SCALE_FACTOR - PIPE_GAP - 10 * SCALE_FACTOR);
+      pipes[i].height = generatePipeHeight();
       score++;
     }
   }
@@ -309,6 +311,7 @@ void drawGame() {
 }
 
 void drawBird() {
+  // Spielfigur hat Animation mit 2 Bildern, diese werden abwechselnd alle 5 Frames dargestellt.
   int birdFrame = (frameCounter / 5) % 2;
   display.drawBitmap(15 - BIRD_WIDTH_PX / 2, birdY / SCALE_FACTOR - BIRD_HEIGHT_PX / 2,
                      epd_bitmap_allArray[birdFrame], BIRD_WIDTH_PX, BIRD_HEIGHT_PX, SSD1306_WHITE);
@@ -403,8 +406,9 @@ void renderHighscoreScreen() {
   display.display();
 }
 
-// ---- Highscores speichern ---- //
+// ---- Neuen Highscore eintragen ---- //
 void saveHighscores(int newScore) {
+  // neuer Score wird mit bestehenden Scores verglichen und ggf richtig einsortiert
   newHighscoreIndex = -1;
   for (int i = 0; i < 5; i++) {
     if (newScore > highscores[i]) {
